@@ -1,0 +1,68 @@
+using Bogus;
+using JornadaMilhasV1.Gerencidor;
+using JornadaMilhasV1.Modelos;
+
+namespace JornadaMilhas.Test;
+
+    public class GerenciadorDeOfertasRecuperaMaiorDesconto
+    {
+        [Fact]
+        public void RetornaOfertaNulaQuandoListaEstaVazia()
+        {
+        //arrange
+        var lista = new List<OfertaViagem>();
+        var gerenciador = new GerenciadorDeOfertas(lista);
+
+        //act
+        Func<OfertaViagem, bool> filtro = oferta => oferta.Rota.Destino.Equals("São Paulo");
+        var oferta = gerenciador.RecuperaMaiorDesconto(filtro);
+
+        //assert
+        Assert.Null(oferta);
+        }
+
+
+        [Fact]
+        //destino => São Paulo, desconto = 40, preco = 80
+        public void RetornaOfertaEspecificaQuandoDestinoSaoPauloDesconto40()
+        {
+        //arrange
+        var fakerPeriodo = new Faker<Periodo>()
+        .CustomInstantiator( f => 
+        {
+            DateTime dataInicio = f.Date.Soon();
+            return new Periodo(dataInicio, dataInicio.AddDays(30));
+        });
+
+        var rota = new Rota("Curitiba", "São Paulo");
+
+        var fakerOferta = new Faker<OfertaViagem>().CustomInstantiator
+        (
+            f => new OfertaViagem(
+                rota,
+                fakerPeriodo.Generate(),
+                100 * f.Random.Int(1,100))
+        )
+        .RuleFor(o => o.Desconto, f => 40)
+        .RuleFor(o => o.Ativa, f => true);
+
+        var ofertaEscolhida = new OfertaViagem(rota, fakerPeriodo.Generate(), 80)
+        {
+            Desconto = 40,
+            Ativa = true
+        };
+
+        var lista = fakerOferta.Generate(200); //gerando 200 ofertas!
+        lista.Add(ofertaEscolhida);
+        var gerenciador = new GerenciadorDeOfertas(lista);
+        var precoEsperado = 40;
+
+        //act
+        Func<OfertaViagem, bool> filtro = oferta => oferta.Rota.Destino.Equals("São Paulo");
+        var oferta = gerenciador.RecuperaMaiorDesconto(filtro);
+
+        //assert
+        Assert.NotNull(oferta);
+        Assert.Equal(precoEsperado, oferta.Preco, 0.0001);
+        }
+    }
